@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  werare-ai:
+    build: .
+    container_name: werare_ai_app
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
