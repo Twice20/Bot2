@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WerareAi Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #15803d; border-radius: 4px; }
+        @keyframes pulse-green { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .thinking-anim { animation: pulse-green 1.5s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-sans h-screen flex flex-col">
+
+    <header class="border-b border-emerald-900/40 bg-zinc-900/60 p-4 flex justify-between items-center backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></div>
+            <h1 class="text-xl font-semibold tracking-wide text-emerald-400">WerareAi <span class="text-xs text-zinc-500">Aiti 1.8</span></h1>
+        </div>
+        <div class="text-right">
+            <div class="text-xs text-zinc-400">Баланс токенов</div>
+            <div id="token-display" class="text-sm font-mono text-emerald-400 font-bold">Загрузка...</div>
+        </div>
+    </header>
+
+    <div class="flex border-b border-zinc-800 bg-zinc-900/30 text-sm">
+        <button onclick="switchTab('chat-tab')" class="tab-btn px-6 py-3 border-b-2 border-emerald-500 text-emerald-400 font-medium">💬 Чат-ассистент</button>
+        <button onclick="switchTab('docs-tab')" class="tab-btn px-6 py-3 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200">📂 Файлы и Скрипты</button>
+        <button id="admin-nav" onclick="switchTab('admin-tab')" class="tab-btn hidden px-6 py-3 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200">⚡ Админ-панель</button>
+    </div>
+
+    <main class="flex-1 overflow-hidden relative">
+        <section id="chat-tab" class="tab-content h-full flex flex-col p-4">
+            <div id="chat-box" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                <div class="bg-emerald-950/20 border border-emerald-900/30 p-4 rounded-xl text-zinc-300 text-sm max-w-2xl">
+                    Привет! Я **WerareAi** с архитектурой **Aiti 1.8**. Могу писать скрипты, упаковывать ZIP-коды и проводить аналитику. Отправьте файл или задачу.
+                </div>
+            </div>
+            
+            <div id="thinking-loader" class="hidden items-center gap-2 text-emerald-500 text-sm p-2 thinking-anim">
+                <svg class="animate-spin h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Робот анализирует структуры данных и формирует ответ...
+            </div>
+
+            <form id="chat-form" onsubmit="sendMessage(event)" class="mt-2 bg-zinc-900 border border-zinc-800 rounded-xl p-2 flex flex-col gap-2">
+                <textarea id="user-input" rows="2" class="bg-transparent resize-none outline-none text-zinc-100 text-sm p-2 w-full placeholder-zinc-500" placeholder="Задайте вопрос или вставьте код..."></textarea>
+                <div class="flex justify-between items-center border-t border-zinc-800/60 pt-2 px-1">
+                    <label class="cursor-pointer text-zinc-400 hover:text-emerald-400 transition flex items-center gap-1 text-xs">
+                        📎 <span id="file-name-label">Прикрепить файл</span>
+                        <input type="file" id="file-input" class="hidden" onchange="updateFileLabel()">
+                    </label>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-4 py-2 rounded-lg transition-all shadow-md">
+                        Отправить
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section id="docs-tab" class="tab-content hidden h-full p-6 overflow-y-auto custom-scrollbar">
+            <h3 class="text-lg font-medium text-emerald-400 mb-2">Генератор скриптов и архивов</h3>
+            <p class="text-zinc-400 text-sm mb-4">Здесь отображаются сгенерированные роботом файлы конфигураций, ZIP-структуры проектов и строки кода.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="files-vault">
+                <div class="bg-zinc-900 p-4 rounded-xl border border-zinc-800">
+                    <div class="text-xs text-zinc-500">Архив проекта</div>
+                    <div class="text-sm font-semibold mt-1">werare_app.zip</div>
+                    <button class="mt-3 w-full bg-zinc-800 hover:bg-zinc-700 text-xs py-2 rounded-lg text-emerald-400">Файл доступен</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="admin-tab" class="tab-content hidden h-full p-6">
+            <h3 class="text-lg font-medium text-emerald-400 mb-4">Панель управления доступом</h3>
+            <div class="bg-zinc-900 p-4 rounded-xl border border-zinc-800 max-w-md space-y-4">
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1">Telegram ID нового Администратора</label>
+                    <input type="number" id="new-admin-id" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm outline-none text-emerald-400 font-mono" placeholder="Например: 123456789">
+                </div>
+                <button onclick="addAdmin()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-xs font-semibold py-2 rounded-lg transition">Предоставить 10 Триллионов Токенов</button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        const initData = tg.initDataUnsafe;
+        const userId = initData.user?.id || 8171375787;
+        
+        async function fetchUserData() {
+            let res = await fetch('/api/user_info', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ user_id: userId })
+            });
+            let data = await res.json();
+            document.getElementById('token-display').innerText = data.tokens.toLocaleString() + ' TKN';
+            if(data.role === 'admin') {
+                document.getElementById('admin-nav').classList.remove('hidden');
+            }
+        }
+        fetchUserData();
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.className = "tab-btn px-6 py-3 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200");
+            
+            document.getElementById(tabId).classList.remove('hidden');
+            event.currentTarget.className = "tab-btn px-6 py-3 border-b-2 border-emerald-500 text-emerald-400 font-medium";
+        }
+
+        function updateFileLabel() {
+            let fp = document.getElementById('file-input');
+            if(fp.files.length > 0) document.getElementById('file-name-label').innerText = fp.files[0].name;
+        }
+
+        function copyToClipboard(btn, text) {
+            navigator.clipboard.writeText(text);
+            btn.innerText = "Скопировано!";
+            setTimeout(() => btn.innerText = "Копировать", 2000);
+        }
+
+        async function sendMessage(e) {
+            e.preventDefault();
+            let input = document.getElementById('user-input');
+            let fileInput = document.getElementById('file-input');
+            let text = input.value.trim();
+            if(!text && fileInput.files.length === 0) return;
+
+            let chatBox = document.getElementById('chat-box');
+            
+            let userMsg = document.createElement('div');
+            userMsg.className = "ml-auto bg-emerald-600/20 border border-emerald-500/30 p-3 rounded-xl max-w-xl text-sm shadow-md";
+            userMsg.innerText = text + (fileInput.files.length ? `\n📎 [Файл: ${fileInput.files[0].name}]` : '');
+            chatBox.appendChild(userMsg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            input.value = "";
+            document.getElementById('file-name-label').innerText = "Прикрепить файл";
+            document.getElementById('thinking-loader').classList.remove('hidden');
+
+            let formData = new FormData();
+            formData.append('user_id', userId);
+            formData.append('message', text);
+            if(fileInput.files[0]) formData.append('file', fileInput.files[0]);
+            fileInput.value = ""; 
+
+            try {
+                let res = await fetch('/api/chat', { method: 'POST', body: formData });
+                let data = await res.json();
+                document.getElementById('thinking-loader').classList.add('hidden');
+                
+                let aiMsg = document.createElement('div');
+                aiMsg.className = "bg-zinc-900 border border-zinc-800 p-4 rounded-xl max-w-2xl text-sm relative space-y-2";
+                
+                if(data.reply.includes("```")) {
+                    let parts = data.reply.split("```");
+                    aiMsg.innerHTML = `<p>${parts[0]}</p>
+                    <div class="bg-black p-3 rounded-lg font-mono text-xs text-emerald-400 relative">
+                        <button onclick="copyToClipboard(this, \`${parts[1].replace(/`/g, '')}\`)" class="absolute right-2 top-2 bg-zinc-800 hover:bg-zinc-700 text-[10px] text-white px-2 py-1 rounded">Копировать</button>
+                        <pre class="overflow-x-auto">${parts[1]}</pre>
+                    </div>`;
+                } else {
+                    aiMsg.innerText = data.reply;
+                }
+                
+                chatBox.appendChild(aiMsg);
+                chatBox.scrollTop = chatBox.scrollHeight;
+                
+                if(data.tokens_left !== undefined) {
+                    document.getElementById('token-display').innerText = data.tokens_left.toLocaleString() + ' TKN';
+                }
+            } catch (err) {
+                document.getElementById('thinking-loader').classList.add('hidden');
+            }
+        }
+
+        async function addAdmin() {
+            let targetId = document.getElementById('new-admin-id').value;
+            if(!targetId) return;
+            let res = await fetch('/api/add_admin', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sender_id: userId, target_id: targetId })
+            });
+            let data = await res.json();
+            alert(data.message || "Статус обновлен");
+        }
+    </script>
+</body>
+</html>
